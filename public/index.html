@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sincronización de Relojes - Sistema Distribuido</title>
+  <!-- Google Fonts Outfit & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  
+  <div class="glass-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-area">
+        <i class="fa-solid fa-network-wired logo-icon"></i>
+        <div>
+          <h1>SyncDist</h1>
+          <p>Sistema Distribuido de Sincronización de Relojes</p>
+        </div>
+      </div>
+      
+      <div class="node-badge" id="node-badge">
+        <div class="badge-icon"><i class="fa-solid fa-circle-nodes"></i></div>
+        <div class="badge-text">
+          <span class="role" id="lbl-rol">Detectando...</span>
+          <span class="ip" id="lbl-ip">192.168.1.XX</span>
+        </div>
+        <div class="badge-status-dot active"></div>
+      </div>
+    </header>
+
+    <!-- Main Grid -->
+    <main class="app-grid">
+      
+      <!-- Left Panel: Reloj y Estado del Nodo -->
+      <section class="panel-left">
+        <div class="card card-clock">
+          <div class="card-header">
+            <h3><i class="fa-regular fa-clock"></i> Reloj Virtual Local</h3>
+            <span class="pulse-indicator active"></span>
+          </div>
+          
+          <div class="clock-display">
+            <div class="time" id="clock-time">00:00:00</div>
+            <div class="ms" id="clock-ms">.000</div>
+          </div>
+          
+          <div class="clock-details">
+            <div class="detail-item">
+              <span class="lbl">Desfase (Offset)</span>
+              <span class="val offset-neutral" id="lbl-offset">0 ms</span>
+            </div>
+            <div class="detail-item">
+              <span class="lbl">Algoritmo Activo</span>
+              <span class="val label-algo" id="lbl-algo-activo">Ninguno (Reloj Interno)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel de Administración del Maestro (Oculto en Esclavos) -->
+        <div class="card card-admin-controls" id="card-maestro-controls" style="display: none;">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-sliders"></i> Controles del Administrador</h3>
+          </div>
+          
+          <div class="control-actions">
+            <div class="control-time-adjustment">
+              <div class="form-group-row">
+                <div class="input-field">
+                  <label for="select-nodo-time">Nodo:</label>
+                  <select id="select-nodo-time" class="form-control">
+                    <option value="todos">Todos los Nodos</option>
+                    <option value="maestro">Maestro</option>
+                    <option value="1">Esclavo 1</option>
+                    <option value="2">Esclavo 2</option>
+                    <option value="3">Esclavo 3</option>
+                    <option value="4">Esclavo 4</option>
+                  </select>
+                </div>
+                <div class="input-field">
+                  <label for="input-time-value">Hora Concreta:</label>
+                  <input type="time" id="input-time-value" step="1" class="form-control">
+                </div>
+              </div>
+              <button class="btn btn-danger" id="btn-establecer-hora" style="margin-top: 10px;">
+                <i class="fa-regular fa-clock"></i> Ajustar a Hora Concreta
+              </button>
+            </div>
+            <p class="help-text" style="margin-top: 6px;">Permite forzar o ajustar el reloj virtual de los nodos seleccionados a una hora física específica para simular desfases.</p>
+          </div>
+
+
+        </div>
+
+        <!-- Estado de Salud de los Esclavos (Solo Maestro) -->
+        <div class="card card-slaves" id="card-slaves-status" style="display: none;">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-server"></i> Salud de los Nodos Esclavos</h3>
+          </div>
+          <div class="slaves-list" id="slaves-list-container">
+            <div class="no-slaves">Esperando conexión de nodos esclavos...</div>
+          </div>
+        </div>
+
+        <!-- Historial de logs locales (TCP/UDP/UI) -->
+        <div class="card card-logs">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-terminal"></i> Registro de Red y Eventos</h3>
+            <button class="btn-clear" id="btn-clear-logs"><i class="fa-solid fa-trash-can"></i></button>
+          </div>
+          <div class="log-console" id="log-console-container">
+            <div class="log-line info">Consola de red iniciada... escuchando logs.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Panel: Módulos del Sistema Distribuido -->
+      <section class="panel-right">
+        
+        <!-- Pestañas de Módulos (Navegación general para ver las simulaciones) -->
+        <nav class="module-tabs">
+          <button class="tab-link active" data-tab="tab-lamport">
+            <i class="fa-solid fa-file-code"></i> Gestión de Versiones (Lamport)
+          </button>
+          <button class="tab-link" data-tab="tab-cristian">
+            <i class="fa-solid fa-heart-pulse"></i> Quirófano Clínico (Cristian)
+          </button>
+          <button class="tab-link" data-tab="tab-berkeley">
+            <i class="fa-solid fa-helicopter"></i> Telemetría de Drones (Berkeley)
+          </button>
+        </nav>
+
+        <!-- Pestaña 1: Gestor de Versiones (Lamport) -->
+        <div class="tab-content active" id="tab-lamport">
+          <div class="card card-editor-viewer-info" id="card-editor-viewer-info" style="display: none;">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-eye"></i> Historial Central de Versiones (Modo Visor)</h3>
+              <span class="badge badge-success">Solo Lectura</span>
+            </div>
+            <p class="help-text" style="font-size: 0.85rem; margin-top: 8px;">Como nodo Maestro, tienes visualización exclusiva y centralizada del historial del archivo común modificado por los desarrolladores (nodos esclavos). A continuación puedes ver el orden de llegada físico desfasado frente al orden lógico correcto ordenado por Lamport.</p>
+          </div>
+
+          <div class="card card-editor" id="editor-container-card">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-file-signature"></i> Archivo de Código Compartido (main.ts)</h3>
+              <span class="hint-key">Presiona <kbd>Ctrl + S</kbd> o el botón para guardar cambios</span>
+            </div>
+            
+            <div class="editor-area">
+              <div class="editor-line-numbers">
+                <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span>
+              </div>
+              <textarea id="code-editor" placeholder="// Escribe aquí tus ediciones al código fuente común..."></textarea>
+            </div>
+            
+            <div class="editor-actions">
+              <div class="author-input-group">
+                <label for="txt-autor">Autor:</label>
+                <input type="text" id="txt-autor" value="Desarrollador" placeholder="Nombre">
+              </div>
+              <button class="btn btn-primary" id="btn-guardar-codigo">
+                <i class="fa-solid fa-floppy-disk"></i> Guardar Cambios (Ctrl+S)
+              </button>
+            </div>
+          </div>
+
+          <!-- Toggle de ordenación + Lista única de confirmaciones -->
+          <div class="card card-history-single">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-timeline"></i> Historial de Confirmaciones</h3>
+              <div class="lamport-toggle-group">
+                <span class="toggle-label" id="lbl-ordernacion">Orden. Lamport</span>
+                <label class="switch switch-sm">
+                  <input type="checkbox" id="switch-lamport-ordering" checked>
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+            <div class="commits-list" id="commits-container">
+              <div class="no-commits">Sin confirmaciones registradas aún.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pestaña 2: Quirófano Clínico (Cristian) -->
+        <div class="tab-content" id="tab-cristian">
+          <div class="card card-surgery">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-house-medical-pulse"></i> Panel Clínico de Cirugía Quirúrgica</h3>
+              <div class="surgery-header-actions">
+                <div class="surgery-status-badge active" id="surgery-mode-lbl">Quirófano Activo</div>
+                <button class="btn btn-danger btn-sm" id="btn-terminar-cirugia" style="display: none;">
+                  <i class="fa-solid fa-square"></i> Terminar Cirugía
+                </button>
+              </div>
+            </div>
+
+            <!-- Dashboard de instrumental clínico simulado -->
+            <div class="surgery-dashboard">
+              <!-- Máquina 1 (Electrocardiograma) -->
+              <div class="sensor-card electrocardiograph" id="surgery-sensor-ecg">
+                <div class="sensor-title">
+                  <span class="sensor-name">Electrocardiograma (ECG)</span>
+                  <span class="sensor-node">Esclavo 1</span>
+                </div>
+                <div class="sensor-value">
+                  <span class="val" id="sensor-ecg-bpm">72</span> <span class="unit">LPM</span>
+                </div>
+                <div class="sensor-chart">
+                  <div class="ecg-line"></div>
+                </div>
+                <div class="sensor-status text-success">
+                  <i class="fa-solid fa-circle-check"></i> Normal
+                </div>
+              </div>
+
+              <!-- Máquina 2 (Ventilador) -->
+              <div class="sensor-card ventilator" id="surgery-sensor-vent">
+                <div class="sensor-title">
+                  <span class="sensor-name">Ventilador Mecánico</span>
+                  <span class="sensor-node">Esclavo 2</span>
+                </div>
+                <div class="sensor-value">
+                  <span class="val" id="sensor-vent-press">18</span> <span class="unit">cmH2O</span>
+                </div>
+                <div class="sensor-chart">
+                  <div class="vent-bar-progress" id="sensor-vent-bar" style="width: 60%;"></div>
+                </div>
+                <div class="sensor-status text-success">
+                  <i class="fa-solid fa-circle-check"></i> Activo (98% O2)
+                </div>
+              </div>
+
+              <!-- Máquina 3 (Presión Arterial) -->
+              <div class="sensor-card pressure" id="surgery-sensor-press">
+                <div class="sensor-title">
+                  <span class="sensor-name">Presión Arterial</span>
+                  <span class="sensor-node">Esclavo 3</span>
+                </div>
+                <div class="sensor-value">
+                  <span class="val" id="sensor-press-val">120/80</span> <span class="unit">mmHg</span>
+                </div>
+                <div class="sensor-chart-radial">
+                  <div class="radial-dot"></div>
+                </div>
+                <div class="sensor-status text-success">
+                  <i class="fa-solid fa-circle-check"></i> Estable
+                </div>
+              </div>
+
+              <!-- Máquina 4 (Bomba de Infusión) -->
+              <div class="sensor-card pump" id="surgery-sensor-pump">
+                <div class="sensor-title">
+                  <span class="sensor-name">Bomba de Infusión</span>
+                  <span class="sensor-node">Esclavo 4</span>
+                </div>
+                <div class="sensor-value">
+                  <span class="val" id="sensor-pump-rate">5.0</span> <span class="unit">ml/h</span>
+                </div>
+                <div class="sensor-volume-liquid">
+                  <div class="liquid-level" id="sensor-pump-liquid" style="height: 75%;"></div>
+                </div>
+                <div class="sensor-status text-success">
+                  <i class="fa-solid fa-circle-check"></i> Infundiendo
+                </div>
+              </div>
+            </div>
+
+            <!-- Panel de registro unificado cronológico -->
+            <div class="surgery-logs-container" id="surgery-logs-container">
+              <h4>Registro Clínico Centralizado (Maestro)</h4>
+              <div class="surgery-event-list" id="surgery-events-container">
+                <div class="no-events">Esperando registros médicos de los sensores...</div>
+              </div>
+            </div>
+
+            <!-- Vista comparativa post-cirugía (oculta inicialmente) -->
+            <div class="surgery-comparison-container" id="surgery-comparison-container" style="display: none;">
+              <div class="card card-history-column">
+                <div class="card-header text-danger">
+                  <h3><i class="fa-solid fa-clock"></i> Orden por Reloj Interno (Sin Cristian)</h3>
+                  <span class="badge badge-error">Desfasado</span>
+                </div>
+                <div class="clinical-events-list" id="eventos-internos-container">
+                  <div class="no-commits">Sin eventos registrados.</div>
+                </div>
+              </div>
+              <div class="card card-history-column">
+                <div class="card-header text-success">
+                  <h3><i class="fa-solid fa-microchip"></i> Orden según Cristian (Corregido)</h3>
+                  <span class="badge badge-success">Sincronizado</span>
+                </div>
+                <div class="clinical-events-list" id="eventos-cristianos-container">
+                  <div class="no-commits">Sin eventos registrados.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pestaña 3: Telemetría de Drones (Berkeley) -->
+        <div class="tab-content" id="tab-berkeley">
+          <div class="card card-drones">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-crosshairs"></i> Monitoreo de Patrón de Escaneo Aéreo (Drones)</h3>
+              <div class="colision-alert-indicator animate-pulse" id="alert-colision-indicator" style="display: none;">
+                <i class="fa-solid fa-triangle-exclamation"></i> ALERTA: RIESGO DE COLISIÓN DETECTADO
+              </div>
+            </div>
+            
+            <div class="drones-simulation-layout">
+              <!-- Canvas de órbita 2D -->
+              <div class="canvas-wrapper">
+                <canvas id="drones-canvas" width="600" height="500"></canvas>
+              </div>
+
+              <!-- Panel de datos de telemetría e IP -->
+              <div class="drones-telemetry-panel">
+                <h4>Telemetría y Estado de Nodos (UDP)</h4>
+                
+                <div class="drone-telemetry-item" id="telemetry-drone-1">
+                  <div class="telemetry-header">
+                    <span class="drone-id"><i class="fa-solid fa-helicopter"></i> Dron 1 (Esclavo 1)</span>
+                    <span class="drone-ip">192.168.1.11</span>
+                  </div>
+                  <div class="telemetry-details">
+                    <span>Posición: <strong class="pos">X: -, Y: -</strong></span>
+                    <span>Reloj Virtual: <strong class="time">-</strong></span>
+                  </div>
+                </div>
+
+                <div class="drone-telemetry-item" id="telemetry-drone-2">
+                  <div class="telemetry-header">
+                    <span class="drone-id"><i class="fa-solid fa-helicopter"></i> Dron 2 (Esclavo 2)</span>
+                    <span class="drone-ip">192.168.1.12</span>
+                  </div>
+                  <div class="telemetry-details">
+                    <span>Posición: <strong class="pos">X: -, Y: -</strong></span>
+                    <span>Reloj Virtual: <strong class="time">-</strong></span>
+                  </div>
+                </div>
+
+                <div class="drone-telemetry-item" id="telemetry-drone-3">
+                  <div class="telemetry-header">
+                    <span class="drone-id"><i class="fa-solid fa-helicopter"></i> Dron 3 (Esclavo 3)</span>
+                    <span class="drone-ip">192.168.1.13</span>
+                  </div>
+                  <div class="telemetry-details">
+                    <span>Posición: <strong class="pos">X: -, Y: -</strong></span>
+                    <span>Reloj Virtual: <strong class="time">-</strong></span>
+                  </div>
+                </div>
+
+                <div class="drone-telemetry-item" id="telemetry-drone-4">
+                  <div class="telemetry-header">
+                    <span class="drone-id"><i class="fa-solid fa-helicopter"></i> Dron 4 (Esclavo 4)</span>
+                    <span class="drone-ip">192.168.1.14</span>
+                  </div>
+                  <div class="telemetry-details">
+                    <span>Posición: <strong class="pos">X: -, Y: -</strong></span>
+                    <span>Reloj Virtual: <strong class="time">-</strong></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Socket.io library -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
