@@ -239,16 +239,6 @@ export function obtenerPantallaActiva() {
   return pantallaActiva;
 }
 
-// Flag para ordenación de Lamport en la UI (single list toggle)
-export let ordenacionLamport: boolean = true;
-
-export function alternarOrdenacionLamport(habilitado: boolean) {
-  ordenacionLamport = habilitado;
-  enviarLogUI('Ordenación Lamport', `Ordenación por ${habilitado ? 'reloj lógico' : 'tiempo físico'}`, 'info');
-  notificarHistorialUI(obtenerHistorialesOrdenados());
-  propagarHistorialAEsclavos();
-}
-
 // Estado de la cirugía (Cristian)
 export let cirugiaActiva: boolean = true;
 
@@ -303,22 +293,22 @@ export function alternarAlgoritmo(tipo: 'cristian' | 'lamport' | 'berkeley', hab
   enviarLogUI('Configuración Algoritmo', `Algoritmo configurado: Cristian=${algoritmoActivo.cristian}, Lamport=${algoritmoActivo.lamport}, Berkeley=${algoritmoActivo.berkeley}`, 'warn');
 }
 
-// Devuelve una sola lista ordenada según el flag ordenacionLamport
+// Devuelve los historiales de código ordenados por tiempo físico (sin Lamport)
+// y por tiempo lógico (con Lamport aplicado). El campo `eventos` mantiene la
+// lista lógica por retrocompatibilidad con consumidores que solo esperan una lista.
 export function obtenerHistorialesOrdenados() {
-  const eventos = [...historialCodigo].sort((a, b) => {
-    if (ordenacionLamport) {
-      if (a.logicalTime === b.logicalTime) {
-        return a.nodoId.localeCompare(b.nodoId);
-      }
-      return a.logicalTime - b.logicalTime;
-    } else {
-      return a.virtualTime - b.virtualTime;
+  const fisicos = [...historialCodigo].sort((a, b) => a.virtualTime - b.virtualTime);
+  const logicos = [...historialCodigo].sort((a, b) => {
+    if (a.logicalTime === b.logicalTime) {
+      return a.nodoId.localeCompare(b.nodoId);
     }
+    return a.logicalTime - b.logicalTime;
   });
 
   return {
-    eventos,
-    ordenacion: ordenacionLamport ? 'logico' : 'fisico'
+    eventos: logicos,
+    fisicos,
+    logicos
   };
 }
 

@@ -31,7 +31,10 @@ const codeEditor = document.getElementById('code-editor');
 const txtAutor = document.getElementById('txt-autor');
 const btnGuardarCodigo = document.getElementById('btn-guardar-codigo');
 const commitsContainer = document.getElementById('commits-container');
-const switchLamportOrdering = document.getElementById('switch-lamport-ordering');
+const commitsFisicosContainer = document.getElementById('commits-fisicos-container');
+const commitsLogicosContainer = document.getElementById('commits-logicos-container');
+const cardHistorySingle = document.getElementById('card-history-single');
+const cardLamportComparison = document.getElementById('card-lamport-comparison');
 const cardEditorViewerInfo = document.getElementById('card-editor-viewer-info');
 const editorContainerCard = document.getElementById('editor-container-card');
 
@@ -119,6 +122,8 @@ socket.on('node-info', (data) => {
     editorContainerCard.style.display = 'none';
     surgeryLogsContainer.style.display = 'block';
     btnTerminarCirugia.style.display = 'inline-flex';
+    if (cardHistorySingle) cardHistorySingle.style.display = 'none';
+    if (cardLamportComparison) cardLamportComparison.style.display = 'block';
   } else {
     badge.style.border = '1px solid rgba(16, 185, 129, 0.3)';
     badge.querySelector('.badge-icon').style.color = 'hsl(145, 65%, 50%)';
@@ -129,6 +134,8 @@ socket.on('node-info', (data) => {
     surgeryLogsContainer.style.display = 'none';
     btnTerminarCirugia.style.display = 'none';
     cardSlaveControls.style.display = 'block';
+    if (cardHistorySingle) cardHistorySingle.style.display = 'block';
+    if (cardLamportComparison) cardLamportComparison.style.display = 'none';
   }
 
   tabLinks.forEach((link) => {
@@ -203,10 +210,6 @@ if (btnEstablecerHora) {
     });
     
     agregarLog('Ajuste Hora', `Solicitado ajustar ${selectVal} a las ${timeVal}`, 'info');
-  });
-
-  switchLamportOrdering.addEventListener('change', (e) => {
-    socket.emit('admin-toggle-lamport-ordering', { enabled: e.target.checked });
   });
 }
 
@@ -304,11 +307,42 @@ function enviarGuardadoCodigo() {
   agregarLog('Guardando Archivo', 'Confirmación generada, enviando al maestro con sello Lamport...', 'info');
 }
 
-socket.on('historial-update', (data) => {
-  const { eventos, ordenacion } = data;
-  const usandoLamport = ordenacion === 'logico';
+function renderCommit(c) {
+  const timeStr = new Date(c.virtualTime).toLocaleTimeString([], { hour12: false });
+  const idCorto = c.id.length > 8 ? c.id.substring(0, 8) : c.id;
+  const item = document.createElement('div');
+  item.className = 'commit-item';
+  item.innerHTML = `
+    <div class="commit-header">
+      <span>
+        <span class="commit-author"><i class="fa-solid fa-user"></i> ${c.author} (Nodo ${c.nodoId})</span>
+        <span class="commit-id-tag"><i class="fa-regular fa-key"></i> ${idCorto}</span>
+      </span>
+      <span class="commit-time-tag"><i class="fa-regular fa-clock"></i> ${timeStr}</span>
+    </div>
+    <div class="commit-content">${c.content}</div>
+    <div class="commit-meta">
+      <span><i class="fa-solid fa-microchip"></i> Tiempo Virtual: ${new Date(c.virtualTime).toLocaleTimeString([], { hour12: false })}</span>
+      <span class="commit-lamport-tag"><i class="fa-solid fa-tag"></i> L: ${c.logicalTime}</span>
+    </div>
+  `;
+  return item;
+}
 
-  // Sincronizar editor con la última escritura
+function pintarLista(container, eventos, vacioMsg) {
+  if (!container) return;
+  container.innerHTML = '';
+  if (!eventos || eventos.length === 0) {
+    container.innerHTML = `<div class="no-commits">${vacioMsg}</div>`;
+    return;
+  }
+  eventos.forEach((c) => container.appendChild(renderCommit(c)));
+}
+
+socket.on('historial-update', (data) => {
+  const { eventos = [], fisicos = [], logicos = [] } = data;
+
+  // Sincronizar editor con la última escritura (común a maestro y esclavos)
   if (eventos && eventos.length > 0) {
     const ultimoCambio = eventos[eventos.length - 1];
     if (miConfig && ultimoCambio.nodoId !== miConfig.id && document.activeElement !== codeEditor) {
@@ -316,37 +350,13 @@ socket.on('historial-update', (data) => {
     }
   }
 
-  // Sincronizar estado del toggle con el servidor
-  if (switchLamportOrdering) {
-    switchLamportOrdering.checked = usandoLamport;
-  }
-
-  // Rellenar lista única
-  commitsContainer.innerHTML = '';
-  if (eventos.length === 0) {
-    commitsContainer.innerHTML = '<div class="no-commits">Sin confirmaciones registradas aún.</div>';
+  if (esMaestro) {
+    // Vista dual simultánea: orden físico vs orden lógico de Lamport
+    pintarLista(commitsFisicosContainer, fisicos, 'Sin confirmaciones registradas aún.');
+    pintarLista(commitsLogicosContainer, logicos, 'Sin confirmaciones registradas aún.');
   } else {
-    eventos.forEach((c) => {
-      const timeStr = new Date(c.virtualTime).toLocaleTimeString([], { hour12: false });
-      const idCorto = c.id.length > 8 ? c.id.substring(0, 8) : c.id;
-      const item = document.createElement('div');
-      item.className = 'commit-item';
-      item.innerHTML = `
-        <div class="commit-header">
-          <span>
-            <span class="commit-author"><i class="fa-solid fa-user"></i> ${c.author} (Nodo ${c.nodoId})</span>
-            <span class="commit-id-tag"><i class="fa-regular fa-key"></i> ${idCorto}</span>
-          </span>
-          <span class="commit-time-tag"><i class="fa-regular fa-clock"></i> ${timeStr}</span>
-        </div>
-        <div class="commit-content">${c.content}</div>
-        <div class="commit-meta">
-          <span><i class="fa-solid fa-microchip"></i> Tiempo Virtual: ${new Date(c.virtualTime).toLocaleTimeString([], { hour12: false })}</span>
-          <span class="commit-lamport-tag"><i class="fa-solid fa-tag"></i> L: ${c.logicalTime}</span>
-        </div>
-      `;
-      commitsContainer.appendChild(item);
-    });
+    // Esclavo: lista única con orden lógico
+    pintarLista(commitsContainer, logicos.length ? logicos : eventos, 'Sin confirmaciones registradas aún.');
   }
 });
 

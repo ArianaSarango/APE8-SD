@@ -12,7 +12,6 @@ import {
   inicializarServidorTCP, 
   difundirComandoTCP, 
   alternarAlgoritmo, 
-  alternarOrdenacionLamport,
   terminarCirugia,
   iniciarNuevaCirugia,
   establecerPantallaActiva,
@@ -127,10 +126,6 @@ async function main() {
       if (data.enabled) {
         notificarHistorialUI(obtenerHistorialesOrdenados());
       }
-    });
-
-    eventosUI.on('ui-admin-toggle-lamport-ordering', (data: { enabled: boolean }) => {
-      alternarOrdenacionLamport(data.enabled);
     });
 
     eventosUI.on('ui-admin-toggle-berkeley', (data: { enabled: boolean }) => {

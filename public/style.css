@@ -943,6 +943,68 @@ input:checked + .slider:before {
   }
 }
 
+/* Comparativa dual de Lamport (Sin algoritmo vs Con algoritmo) */
+.lamport-comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 16px;
+}
+
+@media (max-width: 1024px) {
+  .lamport-comparison-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card-history-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.card-history-column .commits-list {
+  flex: 1;
+  height: 380px;
+}
+
+/* Helpers de color para encabezados */
+.text-warning {
+  color: hsl(38, 90%, 60%) !important;
+}
+.text-success {
+  color: hsl(145, 65%, 55%) !important;
+}
+.text-danger {
+  color: hsl(355, 85%, 65%) !important;
+}
+
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid transparent;
+}
+.badge-success {
+  background: rgba(16, 185, 129, 0.12);
+  color: hsl(145, 65%, 60%);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+.badge-warn {
+  background: rgba(245, 158, 11, 0.12);
+  color: hsl(38, 90%, 60%);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+.badge-error {
+  background: rgba(239, 68, 68, 0.12);
+  color: hsl(355, 85%, 65%);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
 .clinical-events-list {
   height: 300px;
   overflow-y: auto;

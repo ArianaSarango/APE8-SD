@@ -21,7 +21,11 @@ const configNodo = obtenerConfiguracionNodoActual();
 export type PantallaActiva = 'tab-lamport' | 'tab-cristian' | 'tab-berkeley';
 
 let pantallaActiva: PantallaActiva = 'tab-lamport';
-let ultimoHistorial: any = { eventos: [], ordenacion: 'logico' };
+let ultimoHistorial: { eventos: any[]; fisicos: any[]; logicos: any[] } = {
+  eventos: [],
+  fisicos: [],
+  logicos: []
+};
 
 // Servir la carpeta public con la interfaz web
 app.use(express.static(path.join(__dirname, '../../public')));
