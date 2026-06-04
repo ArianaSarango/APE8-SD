@@ -17,7 +17,6 @@ Simulador de sincronización de relojes en sistemas distribuidos con 5 nodos (1 
 - **Red TCP** (puerto 5000): Comunicación fiable maestro-esclavo (registro, eventos, Cristian, health checks PING/PONG)
 - **Red UDP** (puerto 5500): Polling ligero para el algoritmo Berkeley
 - **Servidor web** (Express + Socket.io, puerto 3000): UI en tiempo real con tres paneles (Lamport, Cristian, Berkeley)
-- **Persistencia SQLite** (sql.js): Historial de eventos Lamport en `data/lamport-history.sqlite`
 - **Reloj virtual**: Reloj ajustable basado en `performance.now()` con deriva aleatoria configurable
 - **Detección automática de nodo**: Por IP de red o variable de entorno `NODE_ID`
 
@@ -109,8 +108,8 @@ APE8-SD/
 │   │   ├── tcpServer.ts
 │   │   ├── tcpClient.ts
 │   │   └── udpServer.ts
-│   ├── storage/             # Persistencia SQLite
-│   │   └── lamportDb.ts
+│   ├── storage/             # Almacenamiento en memoria
+│   │   └── simulatedDb.ts
 │   ├── types/               # Declaraciones TypeScript
 │   └── web/                 # Servidor web
 │       └── app.ts

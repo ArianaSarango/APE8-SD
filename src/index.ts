@@ -22,7 +22,6 @@ import {
   obtenerHistorialesBD,
   estadoBDGlobal
 } from './network/tcpServer';
-import { cargarHistorialLamport, inicializarLamportDb } from './storage/lamportDb';
 import { 
   conectarAlMaestro, 
   algoritmoActivoEsclavo, 
@@ -61,14 +60,6 @@ async function main() {
 
   if (configNodo.rol === 'maestro') {
     // === NODO MAESTRO ===
-
-    await inicializarLamportDb();
-
-    const historialPersistido = cargarHistorialLamport();
-    if (historialPersistido.length > 0) {
-      historialCodigo.splice(0, historialCodigo.length, ...historialPersistido);
-      notificarHistorialUI(obtenerHistorialesOrdenados());
-    }
 
     const aplicarPantallaActiva = (screen: 'tab-lamport' | 'tab-cristian' | 'tab-berkeley' | 'tab-vectorclock') => {
       establecerPantallaActiva(screen);

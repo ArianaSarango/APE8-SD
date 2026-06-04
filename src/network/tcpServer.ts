@@ -2,7 +2,6 @@ import net from 'net';
 import { PUERTO_TCP, NodoConfig, NODOS } from '../config';
 import relojLocal from '../virtualClock';
 import { enviarLogUI, actualizarNodosUI, notificarHistorialUI, notificarEventosClinicosUI, notificarFinCirugiaUI, notificarNuevaCirugiaUI, notificarLecturasSensorUI, notificarDBUI } from '../web/app';
-import { guardarEventoLamport } from '../storage/lamportDb';
 import { type EventoBD, relojVectorLocal } from '../algorithms/vectorClock';
 import { dbSimuladaLocal } from '../storage/simulatedDb';
 
@@ -131,7 +130,6 @@ export function inicializarServidorTCP(): Promise<void> {
                   nodoId: esclavoId || 'desconocido'
                 };
                 historialCodigo.push(nuevoEvento);
-                guardarEventoLamport(nuevoEvento);
                 console.log(`[Lamport] Nuevo cambio de código recibido del nodo ${esclavoId}: L=${logicalTime}`);
                 enviarLogUI(
                   'Cambio Código (Lamport)', 
