@@ -8,6 +8,7 @@ let reconectarInterval: NodeJS.Timeout | null = null;
 const configNodo = obtenerConfiguracionNodoActual();
 
 // Estado del algoritmo en el esclavo
+export let pantallaActivaEsclavo: 'tab-lamport' | 'tab-cristian' | 'tab-berkeley' = 'tab-lamport';
 export let algoritmoActivoEsclavo = {
   cristian: false,
   lamport: false,
@@ -139,6 +140,7 @@ export function conectarAlMaestro() {
           case 'CAMBIO_PANTALLA': {
             const screen = mensaje.payload?.screen;
             if (screen === 'tab-lamport' || screen === 'tab-cristian' || screen === 'tab-berkeley') {
+              pantallaActivaEsclavo = screen;
               notificarPantallaUI(screen);
             }
             break;

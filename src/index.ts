@@ -24,6 +24,7 @@ import {
   conectarAlMaestro, 
   algoritmoActivoEsclavo, 
   cirugiaActivaLocal,
+  pantallaActivaEsclavo,
   enviarMensajeTCPAlMaestro 
 } from './network/tcpClient';
 import { 
@@ -293,7 +294,7 @@ function iniciarSimuladorEventosClinicos() {
 
   // Eventos clínicos cada ~15s (solo si la cirugía está activa)
   setInterval(() => {
-    if (!cirugiaActivaLocal) return;
+    if (!cirugiaActivaLocal || pantallaActivaEsclavo !== 'tab-cristian') return;
 
     const eventoAleatorio = infoMaquina.eventos[Math.floor(Math.random() * infoMaquina.eventos.length)];
     const timestamp = relojLocal.getTime();
@@ -312,7 +313,7 @@ function iniciarSimuladorEventosClinicos() {
 
   // Lecturas de sensores cada ~3.5s (solo si la cirugía está activa)
   setInterval(() => {
-    if (!cirugiaActivaLocal) return;
+    if (!cirugiaActivaLocal || pantallaActivaEsclavo !== 'tab-cristian') return;
 
     const payloads: Record<string, any> = {
       '1': { bpm: 60 + Math.round(Math.random() * 30) },
