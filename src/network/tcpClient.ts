@@ -1,14 +1,16 @@
 import net from 'net';
 import { NODOS, PUERTO_TCP, obtenerConfiguracionNodoActual } from '../config';
 import relojLocal from '../virtualClock';
-import { enviarLogUI, notificarHistorialUI, notificarPantallaUI } from '../web/app';
+import { enviarLogUI, notificarHistorialUI, notificarPantallaUI, notificarDBUI } from '../web/app';
+import { relojVectorLocal, type EventoBD } from '../algorithms/vectorClock';
+import { dbSimuladaLocal } from '../storage/simulatedDb';
 
 let clienteSocket: net.Socket | null = null;
 let reconectarInterval: NodeJS.Timeout | null = null;
 const configNodo = obtenerConfiguracionNodoActual();
 
 // Estado del algoritmo en el esclavo
-export let pantallaActivaEsclavo: 'tab-lamport' | 'tab-cristian' | 'tab-berkeley' = 'tab-lamport';
+export let pantallaActivaEsclavo: 'tab-lamport' | 'tab-cristian' | 'tab-berkeley' | 'tab-vectorclock' = 'tab-lamport';
 export let algoritmoActivoEsclavo = {
   cristian: false,
   lamport: false,
@@ -139,7 +141,7 @@ export function conectarAlMaestro() {
 
           case 'CAMBIO_PANTALLA': {
             const screen = mensaje.payload?.screen;
-            if (screen === 'tab-lamport' || screen === 'tab-cristian' || screen === 'tab-berkeley') {
+            if (screen === 'tab-lamport' || screen === 'tab-cristian' || screen === 'tab-berkeley' || screen === 'tab-vectorclock') {
               pantallaActivaEsclavo = screen;
               notificarPantallaUI(screen);
             }
@@ -161,6 +163,44 @@ export function conectarAlMaestro() {
           case 'INICIAR_CIRUGIA': {
             cirugiaActivaLocal = true;
             enviarLogUI('Cirugía', 'Nueva cirugía iniciada por el maestro.', 'info');
+            break;
+          }
+
+          case 'DB_WRITE_RELAY': {
+            const eventoRelay: EventoBD = mensaje.payload.evento;
+            const estadoDB: Record<string, string> = mensaje.payload.estadoDB || {};
+
+            // No procesar el relay si el evento se originó en este mismo nodo
+            if (eventoRelay.nodoOrigen === configNodo.id) break;
+
+            dbSimuladaLocal.aplicarEventoRemoto(eventoRelay, configNodo.id);
+
+            Object.entries(estadoDB).forEach(([k, v]) => dbSimuladaLocal.set(k, v));
+
+            notificarDBUI({
+              estado: dbSimuladaLocal.getAll(),
+              historial: {
+                eventos: dbSimuladaLocal.getHistorialVectorClock(),
+                fisicos: dbSimuladaLocal.getHistorialFisico(),
+                logicos: dbSimuladaLocal.getHistorialVectorClock()
+              }
+            });
+
+            enviarLogUI(
+              'BD Relay',
+              `Escritura remota de ${eventoRelay.nodoOrigen}: ${eventoRelay.clave}=${eventoRelay.valor}. VC local actualizado.`,
+              'info'
+            );
+            break;
+          }
+
+          case 'DB_READ_RES': {
+            const { clave, valor } = mensaje.payload;
+            enviarLogUI(
+              'BD Lectura',
+              `Resultado de lectura remota: ${clave} = ${valor ?? '(vacío)'}`,
+              'info'
+            );
             break;
           }
         }

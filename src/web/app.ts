@@ -18,7 +18,7 @@ const io = new SocketIOServer(server, {
 export const eventosUI = new EventEmitter();
 
 const configNodo = obtenerConfiguracionNodoActual();
-export type PantallaActiva = 'tab-lamport' | 'tab-cristian' | 'tab-berkeley';
+export type PantallaActiva = 'tab-lamport' | 'tab-cristian' | 'tab-berkeley' | 'tab-vectorclock';
 
 let pantallaActiva: PantallaActiva = 'tab-lamport';
 let ultimoHistorial: { eventos: any[]; fisicos: any[]; logicos: any[] } = {
@@ -105,6 +105,15 @@ io.on('connection', (socket) => {
     eventosUI.emit('ui-admin-terminar-cirugia');
   });
 
+  // Operaciones de Base de Datos Distribuida (Vector Clock)
+  socket.on('db-write', (data: { clave: string; valor: string }) => {
+    eventosUI.emit('ui-db-write', data);
+  });
+
+  socket.on('db-read', (data: { clave: string }) => {
+    eventosUI.emit('ui-db-read', data);
+  });
+
   // Auto-ajuste del reloj local por el propio esclavo
   socket.on('slave-establecer-hora', (data: { targetTime: number }) => {
     eventosUI.emit('slave-ui-establecer-hora', data);
@@ -166,6 +175,10 @@ export function notificarLecturasSensorUI(data: any) {
     ultimasLecturasSensor[data.nodoId] = data;
   }
   io.emit('sensor-readings-update', { ...ultimasLecturasSensor });
+}
+
+export function notificarDBUI(data: { estado: Record<string, string>; historial: { eventos: any[]; fisicos: any[]; logicos: any[] } }) {
+  io.emit('db-estado-update', data);
 }
 
 export function notificarPantallaUI(screen: PantallaActiva) {

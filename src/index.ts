@@ -6,7 +6,8 @@ import {
   enviarLogUI, 
   notificarPantallaUI,
   notificarHistorialUI, 
-  actualizarNodosUI 
+  actualizarNodosUI,
+  notificarDBUI 
 } from './web/app';
 import { 
   inicializarServidorTCP, 
@@ -17,7 +18,9 @@ import {
   establecerPantallaActiva,
   obtenerHistorialesOrdenados, 
   historialCodigo, 
-  actualizarEstadoEsclavosUI 
+  actualizarEstadoEsclavosUI,
+  obtenerHistorialesBD,
+  estadoBDGlobal
 } from './network/tcpServer';
 import { cargarHistorialLamport, inicializarLamportDb } from './storage/lamportDb';
 import { 
@@ -42,6 +45,8 @@ import {
   registrarTiempoEsclavoBerkeley 
 } from './algorithms/berkeley';
 import { relojLamportLocal } from './algorithms/lamport';
+import { relojVectorLocal } from './algorithms/vectorClock';
+import { dbSimuladaLocal } from './storage/simulatedDb';
 
 const configNodo = obtenerConfiguracionNodoActual();
 
@@ -65,7 +70,7 @@ async function main() {
       notificarHistorialUI(obtenerHistorialesOrdenados());
     }
 
-    const aplicarPantallaActiva = (screen: 'tab-lamport' | 'tab-cristian' | 'tab-berkeley') => {
+    const aplicarPantallaActiva = (screen: 'tab-lamport' | 'tab-cristian' | 'tab-berkeley' | 'tab-vectorclock') => {
       establecerPantallaActiva(screen);
       notificarPantallaUI(screen);
 
@@ -79,6 +84,13 @@ async function main() {
       } else if (screen === 'tab-berkeley') {
         alternarAlgoritmo('berkeley', true);
         iniciarBerkeley();
+      } else if (screen === 'tab-vectorclock') {
+        detenerBerkeley();
+        alternarAlgoritmo('lamport', false);
+        notificarDBUI({
+          estado: estadoBDGlobal,
+          historial: obtenerHistorialesBD()
+        });
       }
 
       difundirComandoTCP('CAMBIO_PANTALLA', { screen });
@@ -138,7 +150,7 @@ async function main() {
       }
     });
 
-    eventosUI.on('ui-admin-switch-screen', (data: { screen: 'tab-lamport' | 'tab-cristian' | 'tab-berkeley' }) => {
+    eventosUI.on('ui-admin-switch-screen', (data: { screen: 'tab-lamport' | 'tab-cristian' | 'tab-berkeley' | 'tab-vectorclock' }) => {
       aplicarPantallaActiva(data.screen);
     });
 
@@ -159,6 +171,28 @@ async function main() {
         difundirComandoTCP('SET_TIME', { targetId: nodoTarget, targetTime });
         enviarLogUI('Ajuste Hora', `Solicitado ajuste a ${nodoTarget} → ${new Date(targetTime).toLocaleTimeString([], { hour12: false })}`, 'info');
       }
+    });
+
+    // Evento de lectura de BD desde la UI del Maestro (solo lectura)
+    eventosUI.on('ui-db-read', (data: { clave: string }) => {
+      const valor = dbSimuladaLocal.get(data.clave) ?? null;
+      const virtualTime = relojLocal.getTime();
+      const evento = dbSimuladaLocal.registrarEvento('lectura', data.clave, valor, configNodo.id, virtualTime);
+
+      enviarLogUI(
+        'BD Lectura (Maestro)',
+        `Lectura local de ${data.clave} = ${valor ?? '(vacío)'}. VC: ${JSON.stringify(evento.vectorClock)}`,
+        'info'
+      );
+
+      notificarDBUI({
+        estado: dbSimuladaLocal.getAll(),
+        historial: {
+          eventos: dbSimuladaLocal.getHistorialVectorClock(),
+          fisicos: dbSimuladaLocal.getHistorialFisico(),
+          logicos: dbSimuladaLocal.getHistorialVectorClock()
+        }
+      });
     });
 
     // Inicializar visualización de salud
@@ -214,6 +248,65 @@ async function main() {
 
     // Iniciar el polling de Cristian en segundo plano (correrá permanentemente pero solo enviará consultas si Cristian está activo)
     iniciarSincronizacionCristian();
+
+    // Eventos de Base de Datos Distribuida (Vector Clock) para esclavos
+    eventosUI.on('ui-db-write', (data: { clave: string; valor: string }) => {
+      const virtualTime = relojLocal.getTime();
+      const evento = dbSimuladaLocal.registrarEvento('escritura', data.clave, data.valor, configNodo.id, virtualTime);
+      dbSimuladaLocal.set(data.clave, data.valor);
+
+      console.log(`[VectorClock Esclavo] Escritura local: ${data.clave}=${data.valor}. VC: ${JSON.stringify(evento.vectorClock)}`);
+      enviarLogUI(
+        'BD Escritura Local',
+        `Escritura local de ${data.clave}=${data.valor}. VC: ${JSON.stringify(evento.vectorClock)}`,
+        'info'
+      );
+
+      notificarDBUI({
+        estado: dbSimuladaLocal.getAll(),
+        historial: {
+          eventos: dbSimuladaLocal.getHistorialVectorClock(),
+          fisicos: dbSimuladaLocal.getHistorialFisico(),
+          logicos: dbSimuladaLocal.getHistorialVectorClock()
+        }
+      });
+
+      enviarMensajeTCPAlMaestro({
+        type: 'DB_WRITE',
+        payload: {
+          clave: data.clave,
+          valor: data.valor,
+          virtualTime,
+          vectorClock: evento.vectorClock
+        }
+      });
+    });
+
+    eventosUI.on('ui-db-read', (data: { clave: string }) => {
+      const valor = dbSimuladaLocal.get(data.clave) ?? null;
+      const virtualTime = relojLocal.getTime();
+      const evento = dbSimuladaLocal.registrarEvento('lectura', data.clave, valor, configNodo.id, virtualTime);
+
+      enviarLogUI(
+        'BD Lectura (Esclavo)',
+        `Lectura local de ${data.clave} = ${valor ?? '(vacío)'}. VC: ${JSON.stringify(evento.vectorClock)}`,
+        'info'
+      );
+
+      notificarDBUI({
+        estado: dbSimuladaLocal.getAll(),
+        historial: {
+          eventos: dbSimuladaLocal.getHistorialVectorClock(),
+          fisicos: dbSimuladaLocal.getHistorialFisico(),
+          logicos: dbSimuladaLocal.getHistorialVectorClock()
+        }
+      });
+
+      enviarMensajeTCPAlMaestro({
+        type: 'DB_READ_REQ',
+        payload: { clave: data.clave }
+      });
+    });
 
     // Conectar eventos de la UI local del Esclavo
     eventosUI.on('ui-code-save', (data: { author: string; content: string }) => {

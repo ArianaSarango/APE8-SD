@@ -1,8 +1,10 @@
 import net from 'net';
 import { PUERTO_TCP, NodoConfig, NODOS } from '../config';
 import relojLocal from '../virtualClock';
-import { enviarLogUI, actualizarNodosUI, notificarHistorialUI, notificarEventosClinicosUI, notificarFinCirugiaUI, notificarNuevaCirugiaUI, notificarLecturasSensorUI } from '../web/app';
+import { enviarLogUI, actualizarNodosUI, notificarHistorialUI, notificarEventosClinicosUI, notificarFinCirugiaUI, notificarNuevaCirugiaUI, notificarLecturasSensorUI, notificarDBUI } from '../web/app';
 import { guardarEventoLamport } from '../storage/lamportDb';
+import { type EventoBD, relojVectorLocal } from '../algorithms/vectorClock';
+import { dbSimuladaLocal } from '../storage/simulatedDb';
 
 // Interfaces internas
 export interface EsclavoConectado {
@@ -35,8 +37,10 @@ export interface EventoClinico {
 export const esclavosConectados: Map<string, EsclavoConectado> = new Map();
 export const historialCodigo: EventoCodigo[] = [];
 export const eventosClinicos: EventoClinico[] = [];
+export const historialBD: EventoBD[] = [];
+export let estadoBDGlobal: Record<string, string> = {};
 
-let pantallaActiva: 'tab-lamport' | 'tab-cristian' | 'tab-berkeley' = 'tab-lamport';
+let pantallaActiva: 'tab-lamport' | 'tab-cristian' | 'tab-berkeley' | 'tab-vectorclock' = 'tab-lamport';
 
 let serverTCP: net.Server | null = null;
 
@@ -178,6 +182,56 @@ export function inicializarServidorTCP(): Promise<void> {
                 break;
               }
 
+              case 'DB_WRITE': {
+                const { clave, valor, virtualTime, vectorClock: vcOrigen } = mensaje.payload;
+                const nodoOrigen = esclavoId || 'desconocido';
+
+                // Sincronizar VC del maestro con el del esclavo
+                relojVectorLocal.sincronizar(vcOrigen);
+
+                // Registrar el evento (incrementa VC del maestro y guarda en historial)
+                const timestampMaestro = relojLocal.getTime();
+                dbSimuladaLocal.set(clave, valor);
+                estadoBDGlobal = dbSimuladaLocal.getAll();
+                const eventoMaestro = dbSimuladaLocal.registrarEvento('escritura', clave, valor, 'maestro', timestampMaestro);
+                historialBD.push(eventoMaestro);
+
+                // El evento propagado usa el VC ORIGINAL del esclavo (directo entre esclavos)
+                const eventoRelay: EventoBD = {
+                  id: Math.random().toString(36).substr(2, 9),
+                  tipo: 'escritura',
+                  clave,
+                  valor,
+                  nodoOrigen,
+                  virtualTime,
+                  vectorClock: { ...vcOrigen }
+                };
+
+                console.log(`[VectorClock] Escritura BD de ${nodoOrigen}: ${clave}=${valor}`);
+                enviarLogUI('BD Escritura', `Nodo ${nodoOrigen} escribió ${clave}=${valor}. VC maestro: ${JSON.stringify(eventoMaestro.vectorClock)}`, 'info');
+
+                difundirComandoTCP('DB_WRITE_RELAY', {
+                  evento: eventoRelay,
+                  estadoDB: estadoBDGlobal
+                });
+
+                notificarDBUI({
+                  estado: estadoBDGlobal,
+                  historial: obtenerHistorialesBD()
+                });
+                break;
+              }
+
+              case 'DB_READ_REQ': {
+                const { clave: claveRead } = mensaje.payload;
+                const valorRead = dbSimuladaLocal.get(claveRead) ?? null;
+                enviarMensajeTCP(socket, {
+                  type: 'DB_READ_RES',
+                  payload: { clave: claveRead, valor: valorRead }
+                });
+                break;
+              }
+
               case 'PONG': {
                 if (esclavoId) {
                   const esclavo = esclavosConectados.get(esclavoId);
@@ -231,7 +285,7 @@ export function difundirComandoTCP(type: string, payload: any) {
   });
 }
 
-export function establecerPantallaActiva(screen: 'tab-lamport' | 'tab-cristian' | 'tab-berkeley') {
+export function establecerPantallaActiva(screen: 'tab-lamport' | 'tab-cristian' | 'tab-berkeley' | 'tab-vectorclock') {
   pantallaActiva = screen;
 }
 
@@ -315,6 +369,12 @@ export function obtenerHistorialesOrdenados() {
 function propagarHistorialAEsclavos() {
   const data = obtenerHistorialesOrdenados();
   difundirComandoTCP('ACTUALIZAR_HISTORIAL', data);
+}
+
+export function obtenerHistorialesBD() {
+  const fisicos = dbSimuladaLocal.getHistorialFisico();
+  const logicos = dbSimuladaLocal.getHistorialVectorClock();
+  return { eventos: logicos, fisicos, logicos };
 }
 
 // Enviar estado de salud de los nodos a la UI del maestro

@@ -56,6 +56,20 @@ const alertColisionIndicator = document.getElementById('alert-colision-indicator
 const canvas = document.getElementById('drones-canvas');
 const ctx = canvas.getContext('2d');
 
+// Base de Datos Distribuida (Vector Clock)
+const cardDbViewerInfo = document.getElementById('card-db-viewer-info');
+const cardDbOperations = document.getElementById('card-db-operations');
+const btnDbWrite = document.getElementById('btn-db-write');
+const btnDbRead = document.getElementById('btn-db-read');
+const dbKeyInput = document.getElementById('db-key-input');
+const dbValueInput = document.getElementById('db-value-input');
+const dbStateContainer = document.getElementById('db-state-container');
+const dbEventsContainer = document.getElementById('db-events-container');
+const cardDbHistorySingle = document.getElementById('card-db-history-single');
+const cardDbComparison = document.getElementById('card-db-comparison');
+const dbEventsFisicosContainer = document.getElementById('db-events-fisicos-container');
+const dbEventsLogicosContainer = document.getElementById('db-events-logicos-container');
+
 // Estado local
 let miConfig = null;
 let offsetLocal = 0;
@@ -86,6 +100,8 @@ function aplicarPantalla(tabId) {
     lblAlgoActivo.textContent = 'Algoritmo de Cristian Activo';
   } else if (tabId === 'tab-berkeley') {
     lblAlgoActivo.textContent = 'Algoritmo de Berkeley Activo';
+  } else if (tabId === 'tab-vectorclock') {
+    lblAlgoActivo.textContent = 'Reloj de Vectores Activo';
   }
 }
 
@@ -124,6 +140,10 @@ socket.on('node-info', (data) => {
     btnTerminarCirugia.style.display = 'inline-flex';
     if (cardHistorySingle) cardHistorySingle.style.display = 'none';
     if (cardLamportComparison) cardLamportComparison.style.display = 'block';
+    if (cardDbViewerInfo) cardDbViewerInfo.style.display = 'block';
+    if (cardDbOperations) cardDbOperations.style.display = 'none';
+    if (cardDbHistorySingle) cardDbHistorySingle.style.display = 'none';
+    if (cardDbComparison) cardDbComparison.style.display = 'block';
   } else {
     badge.style.border = '1px solid rgba(16, 185, 129, 0.3)';
     badge.querySelector('.badge-icon').style.color = 'hsl(145, 65%, 50%)';
@@ -136,6 +156,10 @@ socket.on('node-info', (data) => {
     cardSlaveControls.style.display = 'block';
     if (cardHistorySingle) cardHistorySingle.style.display = 'block';
     if (cardLamportComparison) cardLamportComparison.style.display = 'none';
+    if (cardDbViewerInfo) cardDbViewerInfo.style.display = 'none';
+    if (cardDbOperations) cardDbOperations.style.display = 'block';
+    if (cardDbHistorySingle) cardDbHistorySingle.style.display = 'block';
+    if (cardDbComparison) cardDbComparison.style.display = 'none';
   }
 
   tabLinks.forEach((link) => {
@@ -359,6 +383,109 @@ socket.on('historial-update', (data) => {
     pintarLista(commitsContainer, logicos.length ? logicos : eventos, 'Sin confirmaciones registradas aún.');
   }
 });
+
+// Funciones de renderizado para eventos de BD
+function renderEventoBD(e) {
+  const timeStr = new Date(e.virtualTime).toLocaleTimeString([], { hour12: false });
+  const tipoIcon = e.tipo === 'escritura' ? 'fa-solid fa-pen' : 'fa-solid fa-magnifying-glass';
+  const tipoClass = e.tipo === 'escritura' ? 'db-write' : 'db-read';
+  const vcStr = Object.entries(e.vectorClock)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}:${v}`)
+    .join(', ');
+
+  const item = document.createElement('div');
+  item.className = `db-event-item ${tipoClass}`;
+  item.innerHTML = `
+    <div class="db-event-header">
+      <span class="db-event-type"><i class="${tipoIcon}"></i> ${e.tipo.toUpperCase()}</span>
+      <span class="db-event-node">Nodo ${e.nodoOrigen}</span>
+      <span class="db-event-time"><i class="fa-regular fa-clock"></i> ${timeStr}</span>
+    </div>
+    <div class="db-event-body">
+      <span class="db-event-key">${e.clave}</span>
+      ${e.valor !== null ? `<span class="db-event-arrow">→</span><span class="db-event-value">${e.valor}</span>` : ''}
+    </div>
+    <div class="db-event-vc">
+      <i class="fa-solid fa-microchip"></i> VC: (${vcStr})
+    </div>
+  `;
+  return item;
+}
+
+function renderEstadoBD(estado) {
+  if (!dbStateContainer) return;
+  dbStateContainer.innerHTML = '';
+  const keys = Object.keys(estado);
+  if (keys.length === 0) {
+    dbStateContainer.innerHTML = '<div class="no-commits">Base de datos vacía. Los esclavos pueden realizar operaciones de escritura.</div>';
+    return;
+  }
+  const table = document.createElement('table');
+  table.className = 'db-state-table';
+  table.innerHTML = `
+    <thead><tr><th>Clave</th><th>Valor</th></tr></thead>
+    <tbody>
+      ${keys.map(k => `<tr><td class="db-key-cell">${k}</td><td class="db-val-cell">${estado[k]}</td></tr>`).join('')}
+    </tbody>
+  `;
+  dbStateContainer.appendChild(table);
+}
+
+function pintarListaBD(container, eventos, vacioMsg) {
+  if (!container) return;
+  container.innerHTML = '';
+  if (!eventos || eventos.length === 0) {
+    container.innerHTML = `<div class="no-commits">${vacioMsg}</div>`;
+    return;
+  }
+  eventos.forEach((e) => container.appendChild(renderEventoBD(e)));
+}
+
+// 7b. Módulo de Base de Datos Distribuida (Vector Clock)
+socket.on('db-estado-update', (data) => {
+  const { estado = {}, historial = {} } = data;
+  const { eventos = [], fisicos = [], logicos = [] } = historial;
+
+  renderEstadoBD(estado);
+
+  if (esMaestro) {
+    pintarListaBD(dbEventsFisicosContainer, fisicos, 'Sin operaciones registradas aún.');
+    pintarListaBD(dbEventsLogicosContainer, logicos, 'Sin operaciones registradas aún.');
+  } else {
+    pintarListaBD(dbEventsContainer, logicos.length ? logicos : eventos, 'Sin operaciones registradas aún.');
+  }
+});
+
+// Operaciones de BD desde la UI
+if (btnDbWrite) {
+  btnDbWrite.addEventListener('click', () => {
+    const clave = dbKeyInput.value.trim();
+    const valor = dbValueInput.value.trim();
+    if (!clave) {
+      alert('Ingresa una clave.');
+      return;
+    }
+    if (!valor) {
+      alert('Ingresa un valor.');
+      return;
+    }
+    socket.emit('db-write', { clave, valor });
+    agregarLog('BD Operación', `Solicitada escritura: ${clave} = ${valor}`, 'info');
+  });
+}
+
+if (btnDbRead) {
+  btnDbRead.addEventListener('click', () => {
+    const clave = dbKeyInput.value.trim();
+    if (!clave) {
+      alert('Ingresa una clave para leer.');
+      return;
+    }
+    socket.emit('db-read', { clave });
+    agregarLog('BD Operación', `Solicitada lectura: ${clave}`, 'info');
+  });
+}
 
 // 7. Módulo de Quirófano (Cristian)
 socket.on('clinicos-update', (eventos) => {

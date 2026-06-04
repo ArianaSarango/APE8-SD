@@ -156,6 +156,9 @@
           <button class="tab-link" data-tab="tab-berkeley">
             <i class="fa-solid fa-helicopter"></i> Telemetría de Drones (Berkeley)
           </button>
+          <button class="tab-link" data-tab="tab-vectorclock">
+            <i class="fa-solid fa-database"></i> BD Distribuida (Vector Clock)
+          </button>
         </nav>
 
         <!-- Pestaña 1: Gestor de Versiones (Lamport) -->
@@ -377,17 +380,6 @@
                   </div>
                 </div>
 
-                <div class="drone-telemetry-item" id="telemetry-drone-2">
-                  <div class="telemetry-header">
-                    <span class="drone-id"><i class="fa-solid fa-helicopter"></i> Dron 2 (Esclavo 2)</span>
-                    <span class="drone-ip">192.168.1.12</span>
-                  </div>
-                  <div class="telemetry-details">
-                    <span>Posición: <strong class="pos">X: -, Y: -</strong></span>
-                    <span>Reloj Virtual: <strong class="time">-</strong></span>
-                  </div>
-                </div>
-
                 <div class="drone-telemetry-item" id="telemetry-drone-3">
                   <div class="telemetry-header">
                     <span class="drone-id"><i class="fa-solid fa-helicopter"></i> Dron 3 (Esclavo 3)</span>
@@ -408,6 +400,91 @@
                     <span>Posición: <strong class="pos">X: -, Y: -</strong></span>
                     <span>Reloj Virtual: <strong class="time">-</strong></span>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pestaña 4: Base de Datos Distribuida (Vector Clock) -->
+        <div class="tab-content" id="tab-vectorclock">
+          <div class="card card-db-viewer-info" id="card-db-viewer-info" style="display: none;">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-eye"></i> Base de Datos Distribuida (Modo Visor)</h3>
+              <span class="badge badge-success">Solo Lectura</span>
+            </div>
+            <p class="help-text" style="font-size: 0.85rem; margin-top: 8px;">Como nodo Maestro, solo puedes consultar el estado de la base de datos y visualizar el historial de operaciones ordenado por el reloj de vectores. Los nodos esclavos realizan las operaciones de escritura.</p>
+          </div>
+
+          <!-- Panel de operaciones de BD (solo esclavos) -->
+          <div class="card card-db-operations" id="card-db-operations" style="display: none;">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-keyboard"></i> Operaciones sobre la BD Distribuida</h3>
+            </div>
+            <div class="db-op-panel">
+              <div class="db-op-row">
+                <div class="input-field">
+                  <label for="db-key-input">Clave:</label>
+                  <input type="text" id="db-key-input" placeholder="ej: usuario1" class="form-control">
+                </div>
+                <div class="input-field">
+                  <label for="db-value-input">Valor:</label>
+                  <input type="text" id="db-value-input" placeholder="ej: Juan Pérez" class="form-control">
+                </div>
+              </div>
+              <div class="db-op-actions">
+                <button class="btn btn-primary" id="btn-db-write">
+                  <i class="fa-solid fa-pen"></i> Escribir (SET)
+                </button>
+                <button class="btn btn-secondary" id="btn-db-read">
+                  <i class="fa-solid fa-magnifying-glass"></i> Leer (GET)
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Estado actual de la BD -->
+          <div class="card card-db-state">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-table"></i> Estado Actual de la Base de Datos</h3>
+            </div>
+            <div class="db-state-content" id="db-state-container">
+              <div class="no-commits">Base de datos vacía. Los esclavos pueden realizar operaciones de escritura.</div>
+            </div>
+          </div>
+
+          <!-- Historial de operaciones (vista única para esclavos) -->
+          <div class="card card-db-history-single" id="card-db-history-single">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-timeline"></i> Historial de Operaciones (Vector Clock)</h3>
+            </div>
+            <div class="db-events-list" id="db-events-container">
+              <div class="no-commits">Sin operaciones registradas aún.</div>
+            </div>
+          </div>
+
+          <!-- Comparativa dual (solo para el maestro) -->
+          <div class="card card-db-comparison" id="card-db-comparison" style="display: none;">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-timeline"></i> Comparativa de Orden — Vector Clock</h3>
+            </div>
+            <div class="db-comparison-grid">
+              <div class="card card-history-column">
+                <div class="card-header text-warning">
+                  <h3><i class="fa-regular fa-clock"></i> Orden por Tiempo Físico (Sin Vector Clock)</h3>
+                  <span class="badge badge-warn">Desfasado</span>
+                </div>
+                <div class="db-events-list" id="db-events-fisicos-container">
+                  <div class="no-commits">Sin operaciones registradas aún.</div>
+                </div>
+              </div>
+              <div class="card card-history-column">
+                <div class="card-header text-success">
+                  <h3><i class="fa-solid fa-microchip"></i> Orden por Vector Clock</h3>
+                  <span class="badge badge-success">Sincronizado</span>
+                </div>
+                <div class="db-events-list" id="db-events-logicos-container">
+                  <div class="no-commits">Sin operaciones registradas aún.</div>
                 </div>
               </div>
             </div>
