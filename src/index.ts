@@ -244,6 +244,28 @@ async function main() {
       });
     });
 
+    // Auto-ajuste del reloj local por decisión del esclavo
+    eventosUI.on('slave-ui-establecer-hora', (data: { targetTime: number }) => {
+      const ajuste = data.targetTime - relojLocal.getTime();
+      relojLocal.adjust(ajuste);
+      enviarLogUI(
+        'Ajuste Hora Local',
+        `Reloj ajustado manualmente en ${ajuste > 0 ? '+' : ''}${Math.round(ajuste)}ms`,
+        'success'
+      );
+    });
+
+    // Desfase aleatorio del reloj local por decisión del esclavo
+    eventosUI.on('slave-ui-desfazar-reloj', () => {
+      const desfaseMs = relojLocal.desfasarAleatoriamente();
+      const min = (desfaseMs / 60000).toFixed(2);
+      enviarLogUI(
+        'Desfase Reloj Local',
+        `Desfase aleatorio aplicado: ${min} minutos (${desfaseMs > 0 ? '+' : ''}${Math.round(desfaseMs / 1000)}s)`,
+        'warn'
+      );
+    });
+
     // Simulación del Quirófano Clínico (disparar eventos clínicos)
     // Para hacerlo interactivo, cada esclavo simula un sensor de quirófano que emite lecturas a intervalos aleatorios
     iniciarSimuladorEventosClinicos();

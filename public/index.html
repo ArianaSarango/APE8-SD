@@ -98,6 +98,28 @@
 
         </div>
 
+        <!-- Panel de Auto-Ajuste del Esclavo (Oculto en Maestro) -->
+        <div class="card card-slave-controls" id="card-slave-controls" style="display: none;">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-sliders"></i> Ajuste de Reloj Local</h3>
+          </div>
+          <div class="control-actions">
+            <div class="control-time-adjustment">
+              <div class="input-field">
+                <label for="input-slave-time">Hora Concreta:</label>
+                <input type="time" id="input-slave-time" step="1" class="form-control">
+              </div>
+              <button class="btn btn-primary" id="btn-slave-ajustar" style="margin-top: 10px;">
+                <i class="fa-regular fa-clock"></i> Ajustar Mi Reloj
+              </button>
+            </div>
+            <button class="btn btn-warn" id="btn-slave-desfazar" style="margin-top: 8px;">
+              <i class="fa-solid fa-shuffle"></i> Desfazar Reloj (Aleatorio)
+            </button>
+            <p class="help-text" style="margin-top: 6px;">Permite ajustar o desfazar tu reloj virtual local. Estos cambios solo afectan a este nodo.</p>
+          </div>
+        </div>
+
         <!-- Estado de Salud de los Esclavos (Solo Maestro) -->
         <div class="card card-slaves" id="card-slaves-status" style="display: none;">
           <div class="card-header">

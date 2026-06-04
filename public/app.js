@@ -16,6 +16,12 @@ const selectNodoTime = document.getElementById('select-nodo-time');
 const inputTimeValue = document.getElementById('input-time-value');
 const slavesListContainer = document.getElementById('slaves-list-container');
 
+// Controles Esclavo
+const cardSlaveControls = document.getElementById('card-slave-controls');
+const btnSlaveAjustar = document.getElementById('btn-slave-ajustar');
+const inputSlaveTime = document.getElementById('input-slave-time');
+const btnSlaveDesfazar = document.getElementById('btn-slave-desfazar');
+
 // Logs
 const logConsoleContainer = document.getElementById('log-console-container');
 const btnClearLogs = document.getElementById('btn-clear-logs');
@@ -122,6 +128,7 @@ socket.on('node-info', (data) => {
     editorContainerCard.style.display = 'block';
     surgeryLogsContainer.style.display = 'none';
     btnTerminarCirugia.style.display = 'none';
+    cardSlaveControls.style.display = 'block';
   }
 
   tabLinks.forEach((link) => {
@@ -200,6 +207,31 @@ if (btnEstablecerHora) {
 
   switchLamportOrdering.addEventListener('change', (e) => {
     socket.emit('admin-toggle-lamport-ordering', { enabled: e.target.checked });
+  });
+}
+
+// 3b. Controles de Auto-Ajuste del Esclavo
+if (btnSlaveAjustar) {
+  btnSlaveAjustar.addEventListener('click', () => {
+    const timeVal = inputSlaveTime.value;
+    if (!timeVal) {
+      alert('Por favor selecciona una hora concreta.');
+      return;
+    }
+    const [h, m, s] = timeVal.split(':');
+    const targetDate = new Date();
+    targetDate.setHours(parseInt(h), parseInt(m), parseInt(s || '0'), 0);
+    const targetTimestamp = targetDate.getTime();
+
+    socket.emit('slave-establecer-hora', { targetTime: targetTimestamp });
+    agregarLog('Ajuste Hora Local', `Solicitado ajustar relocal a las ${timeVal}`, 'info');
+  });
+}
+
+if (btnSlaveDesfazar) {
+  btnSlaveDesfazar.addEventListener('click', () => {
+    socket.emit('slave-desfazar-reloj');
+    agregarLog('Desfase Reloj Local', `Solicitado desfase aleatorio del reloj...`, 'warn');
   });
 }
 

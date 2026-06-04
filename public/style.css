@@ -288,6 +288,17 @@ body {
   transform: translateY(-1px);
 }
 
+.btn-warn {
+  background: linear-gradient(135deg, hsl(38, 90%, 55%), hsl(38, 90%, 45%));
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+}
+
+.btn-warn:hover {
+  background: linear-gradient(135deg, hsl(38, 90%, 60%), hsl(38, 90%, 50%));
+  transform: translateY(-1px);
+}
+
 .help-text {
   font-size: 0.75rem;
   color: hsl(210, 10%, 60%);

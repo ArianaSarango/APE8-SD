@@ -100,6 +100,15 @@ io.on('connection', (socket) => {
     if (configNodo.rol !== 'maestro') return;
     eventosUI.emit('ui-admin-terminar-cirugia');
   });
+
+  // Auto-ajuste del reloj local por el propio esclavo
+  socket.on('slave-establecer-hora', (data: { targetTime: number }) => {
+    eventosUI.emit('slave-ui-establecer-hora', data);
+  });
+
+  socket.on('slave-desfazar-reloj', () => {
+    eventosUI.emit('slave-ui-desfazar-reloj');
+  });
 });
 
 // Transmitir periódicamente el tiempo virtual al frontend para que esté sincronizado visualmente
