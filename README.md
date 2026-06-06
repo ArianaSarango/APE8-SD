@@ -89,6 +89,18 @@ NODE_ID=1 npm run dev
 |---|---|---|
 | `NODE_ID` | Identidad del nodo (`maestro`, `1`, `2`, `3`, `4`) | `maestro` |
 
+## Prototipos en Python (evolución del proyecto)
+
+Antes de la implementación final en Node.js, se desarrollaron prototipos independientes en Python para validar los tres algoritmos:
+
+| Script | Algoritmo | Rol |
+|---|---|---|
+| `python_scripts/servidor_berkeley.py` / `cliente_berkeley.py` | Berkeley | Coordinador que promedia tiempos de 4 clientes y envía correcciones |
+| `python_scripts/servidor_cristian.py` / `cliente_cristian.py` | Cristian | Servidor de tiempo que responde a consultas TCP/UDP con timestamp |
+| `python_scripts/servidor_lamport.py` / `cliente_lamport.py` | Lamport | Servidor que mantiene un reloj lógico y ordena eventos entre clientes |
+
+> **Nota:** Estos scripts quedan como evidencia de la evolución del sistema. **No se recomienda su uso**; la funcionalidad equivalente está incorporada en la versión Node.js.
+
 ## Estructura del proyecto
 
 ```
